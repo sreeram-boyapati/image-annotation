@@ -3,3 +3,7 @@ Datasets
 
 #ignore packages
 pkg
+
+#ignore Cmakesuser
+src/CMakeLists.txt.user
+
