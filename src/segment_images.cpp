@@ -1,10 +1,12 @@
 #include <iostream>
 #include <vector>
+#include <string>
+#include <sstream>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/operations.hpp>
-#include<opencv2/features2d/features2d.hpp>
+#include <opencv2/features2d/features2d.hpp>
 #include <opencv2/nonfree/nonfree.hpp>
 #include <opencv2/nonfree/nonfree.hpp>
 #include <mongo/bson/bson.h>
@@ -18,6 +20,28 @@ using namespace std;
 
 void run(mongo::DBClientConnection* c){
     c->connect("127.0.0.1:27017");
+}
+
+bool flann_matcher(Mat img1_descriptors, Mat img2_descriptors){
+    FlannBasedMatcher f_matcher;
+    vector<DMatch> matches;
+    f_matcher.match(img1_descriptors, img2_descriptors, matches);
+    double max_dist = 0; double min_dist = 100;
+    for(int i=0; i<img1_descriptors.rows; i++){
+        double dist= matches[i].distance;
+        if( dist < min_dist) min_dist = dist;
+        if( dist > min_dist) max_dist = dist;
+    }
+    vector<DMatch> good_matches;
+    for(int i=0; i< img1_descriptors.rows; i++){
+        if(matches[i].distance <= max(2*min_dist, 0.02)){
+            good_matches.push_back(matches[i]);
+        }
+    }
+    //Algorithm to determine if they are similar or not.
+    // If good_matches >= total_matches/3;
+
+    return false;
 }
 
 Mat NormalizeImage(Mat source){
@@ -50,14 +74,15 @@ Mat SURF_Feature_Detector(Mat src){
     Mat img_keypoints;
     cout<<"Extract Keypoints: "<<keypoints.size()<<endl;
     drawKeypoints(temp, keypoints, img_keypoints, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+    imshow("img", img_keypoints);
+    waitKey(0);
     Mat descriptors;
     //Extract Descriptions of the Keypoint.
     Ptr<DescriptorExtractor> descriptionExtractor = DescriptorExtractor::create("SURF");
     descriptionExtractor->compute(temp, keypoints, descriptors);
     cout<<"Extract Features Rows: "<<descriptors.rows<< "Columns: "<<descriptors.cols<<endl;
-    return descriptors;
+    return img_keypoints;
 }
-
 
 void mergeSegments(Mat & image,Mat & segments, int & numOfSegments)
 {
@@ -290,7 +315,7 @@ Mat multi_channelSegmentation(Mat src){
 
 }
 
-void ProcessImage(const string image_url){
+Mat ProcessImage(const string image_url){
     using namespace boost::algorithm;
     vector<string> tokens;
     split(tokens, image_url, is_any_of("/"));
@@ -303,11 +328,32 @@ void ProcessImage(const string image_url){
     string output_path = join(tokens, "/");
     cout<<"Output Path: "<<output_path<<endl;
     Mat sourceImage = imread(image_url);
+    //imshow("Original Image", sourceImage);
     Mat outputImage = multi_channelSegmentation(sourceImage);
     //Mat img_descriptors = SURF_Feature_Detector(sourceImage);
-    namedWindow("seg");
-    imshow("seg", outputImage);
+    //imwrite("output.jpg", outputImage);
+    imshow("img", outputImage);
     waitKey(0);
+    return outputImage;
+}
+
+mongo::BSONObj StoreinDatabase(Mat & image_des, int image_no, string image_folder){
+   mongo::BSONObjBuilder bob;
+   bob.append("image_no", image_no);
+   bob.append("image_folder", image_folder);
+   mongo::BSONObjBuilder descriptors;
+   for(int i=0; i<image_des.rows; i++){
+       mongo::BSONArrayBuilder bab;
+       for(int j=0; j<image_des.cols; j++){
+            bab.append(image_des.at<int>(i, j));
+       }
+       ostringstream ss;
+       ss<<i;
+       descriptors.appendArray(ss.str(), bab.arr());
+   }
+   bob.append("descriptors", descriptors.obj());
+   return bob.obj();
+
 }
 
 int main(int argc, char *argv[]){
@@ -326,11 +372,10 @@ int main(int argc, char *argv[]){
     int i=0;
     while(cursor->more()){
         mongo::BSONObj result = cursor->next();
-        ProcessImage(result.getStringField("image_url"));
-        i++;
-        if(i==1){
-            break;
-        }
+        Mat image_descriptors = ProcessImage(result.getStringField("image_url"));
+        //mongo::BSONObj bsonObject = StoreinDatabase(image_descriptors, result.getIntField("image_no"), result.getStringField("image_folder"));
+        //c.insert("image_annotation.image_descriptors", bsonObject);
+        break;
     }
     return 0;
 }

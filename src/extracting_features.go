@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -58,9 +59,11 @@ func Process_ontologyfile(folder_path string, ontology_path string) {
 }
 
 func main() {
-	present_directory, err := path.Dir(os.Getwd())
+	present_directory, err := os.Getwd()
+	parent_directory := path.Dir(present_directory)
 	Panicif(err)
-	dataset_directory := filepath.Join(present_directory, "/Datasets/saiaprtc12ok/benchmark/saiapr_tc-12")
+	dataset_directory := filepath.Join(parent_directory, "/Datasets/saiaprtc12ok/benchmark/saiapr_tc-12")
+	fmt.Println(dataset_directory)
 	files, err := filepath.Glob(dataset_directory + "/*")
 	Panicif(err)
 
