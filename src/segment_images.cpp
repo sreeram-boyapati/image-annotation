@@ -2,6 +2,8 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include "surffeatures.h"
+#include "segment_images.h"
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/mat.hpp>
@@ -22,28 +24,6 @@ void run(mongo::DBClientConnection* c){
     c->connect("127.0.0.1:27017");
 }
 
-bool flann_matcher(Mat img1_descriptors, Mat img2_descriptors){
-    FlannBasedMatcher f_matcher;
-    vector<DMatch> matches;
-    f_matcher.match(img1_descriptors, img2_descriptors, matches);
-    double max_dist = 0; double min_dist = 100;
-    for(int i=0; i<img1_descriptors.rows; i++){
-        double dist= matches[i].distance;
-        if( dist < min_dist) min_dist = dist;
-        if( dist > min_dist) max_dist = dist;
-    }
-    vector<DMatch> good_matches;
-    for(int i=0; i< img1_descriptors.rows; i++){
-        if(matches[i].distance <= max(2*min_dist, 0.02)){
-            good_matches.push_back(matches[i]);
-        }
-    }
-    //Algorithm to determine if they are similar or not.
-    // If good_matches >= total_matches/3;
-
-    return false;
-}
-
 Mat NormalizeImage(Mat source){
     int channels = source.channels();
     Mat dst;
@@ -59,29 +39,6 @@ Mat NormalizeImage(Mat source){
         break;
     }
     return dst;
-}
-
-Mat SURF_Feature_Detector(Mat src){
-    //Hessian Threshold
-    int minHession = 400;
-    Mat temp;
-    src.copyTo(temp);
-    SurfFeatureDetector detector (minHession);
-    vector<KeyPoint> keypoints;
-    //Extract KeyPoints
-    detector.detect(temp, keypoints);
-    //Draw KeyPoints
-    Mat img_keypoints;
-    cout<<"Extract Keypoints: "<<keypoints.size()<<endl;
-    drawKeypoints(temp, keypoints, img_keypoints, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
-    imshow("img", img_keypoints);
-    waitKey(0);
-    Mat descriptors;
-    //Extract Descriptions of the Keypoint.
-    Ptr<DescriptorExtractor> descriptionExtractor = DescriptorExtractor::create("SURF");
-    descriptionExtractor->compute(temp, keypoints, descriptors);
-    cout<<"Extract Features Rows: "<<descriptors.rows<< "Columns: "<<descriptors.cols<<endl;
-    return img_keypoints;
 }
 
 void mergeSegments(Mat & image,Mat & segments, int & numOfSegments)
@@ -329,12 +286,13 @@ Mat ProcessImage(const string image_url){
     cout<<"Output Path: "<<output_path<<endl;
     Mat sourceImage = imread(image_url);
     //imshow("Original Image", sourceImage);
-    Mat outputImage = multi_channelSegmentation(sourceImage);
-    //Mat img_descriptors = SURF_Feature_Detector(sourceImage);
+    //Mat outputImage = multi_channelSegmentation(sourceImage);
+    Mat img_descriptors = SURF_Feature_Detector(sourceImage);
     //imwrite("output.jpg", outputImage);
-    imshow("img", outputImage);
+    //imshow("img", outputImage);
     waitKey(0);
-    return outputImage;
+    //return outputImage;
+    return img_descriptors;
 }
 
 mongo::BSONObj StoreinDatabase(Mat & image_des, int image_no, string image_folder){
