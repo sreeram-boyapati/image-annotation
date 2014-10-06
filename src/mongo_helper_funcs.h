@@ -1,5 +1,5 @@
-#ifndef SEGMENT_IMAGES_H_INCLUDED__
-#define SEGMENT_IMAGES_H_INCLUDED__
+#ifndef MONGO_HELPER_FUNCS_H_INCLUDED__
+#define MONGO_HELPER_FUNCS_H_INCLUDED__
 
 #include <iostream>
 #include <vector>
@@ -20,12 +20,10 @@
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/classification.hpp>
 
-cv::Mat NormalizeImage(cv::Mat source);
+mongo::BSONObj MakeObj(cv::Mat & image_des, int image_no, std::string image_folder);
 
-cv::Mat ProcessImage(const std::string image_url);
+mongo::BSONObj MakeErrorObj(std::string error, int image_no, std::string image_folder);
 
-cv::Mat multi_channelSegmentation(cv::Mat src);
+void Mongo_run(mongo::DBClientConnection* c);
 
-cv::Mat watershedSegment(cv::Mat & image, int & noOfSegments);
-
-#endif // SEGMENT_IMAGES_H
+#endif // MONGO_HELPER_FUNCS_H

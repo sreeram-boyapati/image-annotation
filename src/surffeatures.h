@@ -1,6 +1,6 @@
 
-#ifndef SURFFEATURES_H
-#define SURFFEATURES_H
+#ifndef SURFFEATURES_H_INCLUDED__
+#define SURFFEATURES_H_INCLUDED__
 
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>

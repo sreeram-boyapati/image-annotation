@@ -4,6 +4,7 @@
 #include <sstream>
 #include "surffeatures.h"
 #include "segment_images.h"
+#include "mongo_helper_funcs.h"
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/mat.hpp>
@@ -18,10 +19,6 @@
 #include <boost/algorithm/string/classification.hpp>
 using namespace cv;
 using namespace std;
-
-void Mongo_run(mongo::DBClientConnection* c){
-    c->connect("127.0.0.1:27017");
-}
 
 Mat ProcessImage(const string image_url){
     using namespace boost::algorithm;
@@ -45,35 +42,6 @@ Mat ProcessImage(const string image_url){
     return img_descriptors;
 }
 
-mongo::BSONObj MakeObj(Mat & image_des, int image_no, string image_folder){
-   mongo::BSONObjBuilder bob;
-   bob.append("image_no", image_no);
-   bob.append("image_folder", image_folder);
-   mongo::BSONObjBuilder descriptors;
-   for(int i=0; i<image_des.rows; i++){
-       mongo::BSONArrayBuilder bab;
-       for(int j=0; j<image_des.cols; j++){
-            bab.append(image_des.at<int>(i, j));
-       }
-       ostringstream ss;
-       ss<<i;
-       descriptors.appendArray(ss.str(), bab.arr());
-   }
-   bob.append("descriptors", descriptors.obj());
-
-   return bob.obj();
-
-}
-
-mongo::BSONObj MakeErrorObj(string error, int image_no, string image_folder){
-    mongo::BSONObjBuilder bob;
-    bob.append("image_no", image_no);
-    bob.append("image_folder", image_folder);
-    bob.append("error", error);
-
-    return bob.obj();
-}
-
 int main(int argc, char *argv[]){
     mongo::client::initialize();
     mongo::DBClientConnection c;
@@ -89,19 +57,31 @@ int main(int argc, char *argv[]){
     auto_ptr<mongo::DBClientCursor> cursor = c.query("image_annotation.images", mongo::BSONObj());
     int i=0;
     while(cursor->more()){
-        mongo::BSONObj result = cursor->next();
-        Mat image_descriptors = ProcessImage(result.getStringField("image_url"));
-        int image_no = result.getIntField("image_no");
-        string image_folder = result.getStringField("image_folder");
-        try{
+        mongo::BSONObj image_object = cursor->next();
+        //Mat image_descriptors = ProcessImage(image_object.getStringField("image_url"));
+        int image_no = image_object.getIntField("image_no");
+        auto_ptr<mongo::DBClientCursor> result_cursor = c.query("image_annotation.imglevel_results", QUERY("image_no" << image_no));
+        mongo::BSONObj image_result = result_cursor->next();
+        vector<mongo::BSONElement> entities = image_result.getField("entities").Array();
+        vector<string> result_entities;
+        for(vector<mongo::BSONElement>::iterator it = entities.begin(); it != entities.end(); it++){
+            string str(it->valuestrsafe());
+            result_entities.push_back(str);
+        }
+        for(vector<string>::iterator it = result_entities.begin(); it != result_entities.end(); it++){
+            cout<<*it<<endl;
+        }
+        string image_folder = image_object.getStringField("image_folder");
+        /*try{
             mongo::BSONObj bsonObject = MakeObj(image_descriptors, image_no, image_folder);
             c.insert("image_annotation.image_descriptors", bsonObject);
         }
-        catch(Exception e){
+        catch(Exception e){  mongo::BSONObj::iterator it = entities.begin();
             string str(e.msg);
             mongo::BSONObj bsonObject = MakeErrorObj(str, image_no, image_folder);
             c.insert("image_annotation.image_descriptors", bsonObject);
-        }
+        }*/
+        break;
     }
     return 0;
 }
