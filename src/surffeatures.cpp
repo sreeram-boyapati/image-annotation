@@ -24,18 +24,16 @@ Mat SURF_Feature_Detector(Mat src){
     detector.detect(temp, keypoints);
     //Draw KeyPoints
     Mat img_keypoints;
-    cout<<"Extract Keypoints: "<<keypoints.size()<<endl;
+    //cout<<"Extract Keypoints: "<<keypoints.size()<<endl;
     drawKeypoints(temp, keypoints, img_keypoints, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
-    imshow("img", img_keypoints);
-    waitKey(0);
+    //imshow("img", img_keypoints);
     Mat descriptors;
     //Extract Descriptions of the Keypoint.
     Ptr<DescriptorExtractor> descriptionExtractor = DescriptorExtractor::create("SURF");
     descriptionExtractor->compute(temp, keypoints, descriptors);
-    cout<<"Extract Features Rows: "<<descriptors.rows<< "Columns: "<<descriptors.cols<<endl;
-    return img_keypoints;
+    cout<<"Extract Features Rows: "<<descriptors.rows<< " Columns: "<<descriptors.cols<<endl;
+    return descriptors;
 }
-
 
 bool flann_matcher(Mat img1_descriptors, Mat img2_descriptors){
     FlannBasedMatcher f_matcher;

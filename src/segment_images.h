@@ -24,16 +24,10 @@
 
 cv::Mat NormalizeImage(cv::Mat source);
 
-void run(mongo::DBClientConnection* c);
-
 cv::Mat ProcessImage(const std::string image_url);
 
 cv::Mat multi_channelSegmentation(cv::Mat src);
 
-mongo::BSONObj StoreinDatabase(cv::Mat & image_des, int image_no, std::string image_folder);
-
-void run(mongo::DBClientConnection* c);
-
-int main(int argc, char *argv[]);
+cv::Mat watershedSegment(cv::Mat & image, int & noOfSegments);
 
 #endif // SEGMENT_IMAGES_H
