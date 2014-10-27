@@ -1,5 +1,5 @@
-#ifndef MONGO_HELPER_FUNCS_H_INCLUDED__
-#define MONGO_HELPER_FUNCS_H_INCLUDED__
+#ifndef PREDICT_H
+#define PREDICT_H
 
 #include <iostream>
 #include <vector>
@@ -20,12 +20,13 @@
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/classification.hpp>
 
-mongo::BSONObj MakeObj(cv::Mat & image_des, int image_no, std::string image_folder);
+class SVM{
+public:
+    vector<cv::Mat> input_data;
+    vector<strings[]> output_data;
+    void init();
+    void train();
+    void predict();
+}
 
-mongo::BSONObj MakeErrorObj(std::string error, int image_no, std::string image_folder);
-
-cv::Mat ExtractDescriptorMatrix(mongo::BSONObj descriptor_object, int image_no);
-
-void Mongo_run(mongo::DBClientConnection* c);
-
-#endif // MONGO_HELPER_FUNCS_H
+#endif // PREDICT_H

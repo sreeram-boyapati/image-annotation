@@ -1,5 +1,5 @@
-#ifndef MONGO_HELPER_FUNCS_H_INCLUDED__
-#define MONGO_HELPER_FUNCS_H_INCLUDED__
+#ifndef KMEANS_WRAPPER_H
+#define KMEANS_WRAPPER_H
 
 #include <iostream>
 #include <vector>
@@ -20,12 +20,6 @@
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/classification.hpp>
 
-mongo::BSONObj MakeObj(cv::Mat & image_des, int image_no, std::string image_folder);
+void kmeans_wrapper(cv::Mat descriptor_matrix, int clusters, int index);
 
-mongo::BSONObj MakeErrorObj(std::string error, int image_no, std::string image_folder);
-
-cv::Mat ExtractDescriptorMatrix(mongo::BSONObj descriptor_object, int image_no);
-
-void Mongo_run(mongo::DBClientConnection* c);
-
-#endif // MONGO_HELPER_FUNCS_H
+#endif // KMEANS_H

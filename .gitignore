@@ -7,3 +7,4 @@ pkg
 #ignore Cmakesuser
 src/CMakeLists.txt.user
 
+bag_words_demo

@@ -27,7 +27,11 @@ Mat SURF_Feature_Detector(Mat src){
     //cout<<"Extract Keypoints: "<<keypoints.size()<<endl;
     drawKeypoints(temp, keypoints, img_keypoints, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
     //imshow("img", img_keypoints);
+
     Mat descriptors;
+    if(img_keypoints.empty()){
+        return descriptors;
+    }
     //Extract Descriptions of the Keypoint.
     Ptr<DescriptorExtractor> descriptionExtractor = DescriptorExtractor::create("SURF");
     descriptionExtractor->compute(temp, keypoints, descriptors);

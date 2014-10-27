@@ -50,3 +50,20 @@ mongo::BSONObj MakeErrorObj(string error, int image_no, string image_folder){
 
     return bob.obj();
 }
+
+Mat ExtractDescriptorMatrix(mongo::BSONObj descriptor_object, int image_no){
+    Mat descriptors = Mat::zeros(descriptor_object.nFields(), 64, CV_32F);
+    mongo::BSONObjIterator it =  descriptor_object.begin();
+    while(it.more()){
+        mongo::BSONElement elem= it.next();
+        vector<mongo::BSONElement> array =  elem.Array();
+        Mat column = Mat::zeros(1, 64, CV_32F);
+        for(int i=0; i!= array.size(); i++){
+            mongo::BSONElement elem = array[i];
+            column.at<int>(0, i) += elem.Int();
+            //cout<<"Added Element: "<< column.at<int>(0, i) <<" Element: "<<elem.Int()<<endl;
+        }
+        descriptors.push_back(column);
+    }
+    return descriptors;
+}

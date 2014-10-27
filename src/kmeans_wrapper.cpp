@@ -1,6 +1,4 @@
-#ifndef MONGO_HELPER_FUNCS_H_INCLUDED__
-#define MONGO_HELPER_FUNCS_H_INCLUDED__
-
+﻿#include "kmeans_wrapper.h"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -20,12 +18,16 @@
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/classification.hpp>
 
-mongo::BSONObj MakeObj(cv::Mat & image_des, int image_no, std::string image_folder);
+using namespace std;
+using namespace cv;
 
-mongo::BSONObj MakeErrorObj(std::string error, int image_no, std::string image_folder);
-
-cv::Mat ExtractDescriptorMatrix(mongo::BSONObj descriptor_object, int image_no);
-
-void Mongo_run(mongo::DBClientConnection* c);
-
-#endif // MONGO_HELPER_FUNCS_H
+/*
+ * Kmeans is used to compact the surf descriptors.
+ */
+void kmeans_wrapper(Mat descriptor_matrix, int clusters, int index){
+    Mat result;
+    Mat centers;
+    kmeans(descriptor_matrix, clusters, result, TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 10, 1.0), 3, KMEANS_RANDOM_CENTERS, centers);
+    cout<<"Columns of Center: "<<centers.cols<<endl;
+    cout<<"Rows of Center: "<<centers.rows<<endl;
+}
