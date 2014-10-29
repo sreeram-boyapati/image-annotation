@@ -71,8 +71,11 @@ func main() {
 				}
 			}
 		}
-		err = imglevel_results_collection.Insert(&Imglevel_result{Image_no: img_result.Image_no, Image_folder: img_result.Image_folder, Entities: distinct_entities})
-		Panicif(err)
+		if img_result.Image_no == 17945 {
+			err = imglevel_results_collection.Insert(&Imglevel_result{Image_no: img_result.Image_no, Image_folder: img_result.Image_folder, Entities: distinct_entities})
+			Panicif(err)
+			break
+		}
 	}
 
 	defer func() {

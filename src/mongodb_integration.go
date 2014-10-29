@@ -58,6 +58,7 @@ func main() {
 	for _, image_dir := range files {
 		image_folder := getfilename(image_dir)
 		abs_image_dir, err := filepath.Abs(filepath.Join(image_dir + "/images"))
+		fmt.Println(abs_image_dir)
 		images_path, err := filepath.Glob(abs_image_dir + "/*")
 		Panicif(err)
 		for _, image := range images_path {

@@ -32,11 +32,13 @@ Mat SURF_Feature_Detector(Mat src){
     if(img_keypoints.empty()){
         return descriptors;
     }
+    else{
     //Extract Descriptions of the Keypoint.
-    Ptr<DescriptorExtractor> descriptionExtractor = DescriptorExtractor::create("SURF");
-    descriptionExtractor->compute(temp, keypoints, descriptors);
-    cout<<"Extract Features Rows: "<<descriptors.rows<< " Columns: "<<descriptors.cols<<endl;
-    return descriptors;
+        Ptr<DescriptorExtractor> descriptionExtractor = DescriptorExtractor::create("SURF");
+        descriptionExtractor->compute(temp, keypoints, descriptors);
+        cout<<"Extract Features Rows: "<<descriptors.rows<< " Columns: "<<descriptors.cols<<endl;
+        return descriptors;
+    }
 }
 
 bool flann_matcher(Mat img1_descriptors, Mat img2_descriptors){

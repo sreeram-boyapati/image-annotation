@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <string>
 #include <sstream>
@@ -22,6 +23,7 @@ using namespace std;
 
 void DisplayImageLevelFeatures(mongo::DBClientConnection);
 void BOW(mongo::DBClientConnection*);
+void AddDescribtorstoDB(mongo::DBClientConnection *);
 
 Mat ProcessImage(const string image_url, const int image_no){
     using namespace boost::algorithm;
@@ -55,6 +57,7 @@ Mat ProcessImage(const string image_url, const int image_no){
 }
 
 int main(){
+    initModule_nonfree();
     mongo::client::initialize();
     mongo::DBClientConnection c;
     try{
@@ -66,60 +69,40 @@ int main(){
     }
     //Get 20000 Images and segment them.
     cout<<"Count of Images: "<<c.count("image_annotation.images")<<endl;
-    auto_ptr<mongo::DBClientCursor> cursor = c.query("image_annotation.images", mongo::BSONObj());
-    while(cursor->more()){
-        mongo::BSONObj image_object = cursor->next();
-        int image_no = image_object.getIntField("image_no");
-        string image_folder = image_object.getStringField("image_folder");
-        string image_url = image_object.getStringField("image_url");
-        //To Process the image
-        Mat image_descriptors = ProcessImage(image_url, image_no);
-        //To add image descriptors to mongodb database
-        if(!image_descriptors.empty()){
-            try{
-                mongo::BSONObj bsonObject = MakeObj(image_descriptors, image_no, image_folder);
-                c.insert("image_annotation.image_descriptors", bsonObject);
-            }
-            catch(Exception e){
-                string str(e.msg);
-                mongo::BSONObj bsonObject = MakeErrorObj(str, image_no, image_folder);
-                c.insert("image_annotation.image_descriptors", bsonObject);
-            }
-        }
-        //To display image level features
-        // DisplayImageLevelFeatures(c);
-    }
+
+    //To Add Image Descriptors to Mongodb
+    //AddDescribtorstoDB(&c);
+
+    //Generate Vocabulary
+    BOW(&c);
+
     return 0;
 }
 
 void BOW(mongo::DBClientConnection *c){
-
-    //Extract Image_Descriptors to add to BOW Trainer
+    ofstream error_file;
+    error_file.open("errors.txt");
+    //Extract Image_Descriptors to add to BOW Trainer , 200 clusters
     BOWKMeansTrainer bowkmeans(200, TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 100, 0.001), 1, KMEANS_PP_CENTERS);
     auto_ptr<mongo::DBClientCursor> cursor = c->query("image_annotation.image_descriptors", mongo::BSONObj());
-    int i=0;
     while(cursor->more()){
         mongo::BSONObj obj = cursor->next();
         int image_no = obj.getIntField("image_no");
+        cout<<image_no<<endl;
         Mat descriptors = ExtractDescriptorMatrix(obj.getObjectField("descriptors"), image_no);
         if(!descriptors.empty()){
             bowkmeans.add(descriptors);
         }
         else{
             cout<<"Empty Descriptors: "<<image_no<<endl;
-        }
-        if(i == 50){
-            break;
-        }
-        else{
-            i++;
+            error_file <<image_no<<"\n" ;
         }
     }
+    error_file.close();
     Mat dictionary = bowkmeans.cluster();
-    FileStorage fs("dictionary.yml", FileStorage::WRITE);
+    FileStorage fs("clusters_vocavulary.yml", FileStorage::WRITE);
     fs << "vocabulary" << dictionary;
     fs.release();
-
 }
 
 void DisplayImageLevelFeatures(mongo::DBClientConnection c, const int image_no){
@@ -132,3 +115,31 @@ void DisplayImageLevelFeatures(mongo::DBClientConnection c, const int image_no){
         result_entities.push_back(str);
     }
 }
+
+void AddDescribtorstoDB(mongo::DBClientConnection* c){
+    auto_ptr<mongo::DBClientCursor> cursor = c->query("image_annotation.images", mongo::BSONObj());
+
+    while(cursor->more()){
+        mongo::BSONObj image_object = cursor->next();
+        int image_no = image_object.getIntField("image_no");
+        string image_folder = image_object.getStringField("image_folder");
+        string image_url = image_object.getStringField("image_url");
+        //To Process the image
+        Mat image_descriptors = ProcessImage(image_url, image_no);
+        //To add image descriptors to mongodb database
+        if(!image_descriptors.empty()){
+            try{
+                mongo::BSONObj bsonObject = MakeObj(image_descriptors, image_no, image_folder);
+                c->insert("image_annotation.image_descriptors", bsonObject);
+            }
+            catch(Exception e){
+                string str(e.msg);
+                mongo::BSONObj bsonObject = MakeErrorObj(str, image_no, image_folder);
+                c->insert("image_annotation.image_descriptors", bsonObject);
+            }
+        }
+        //To display image level features
+        // DisplayImageLevelFeatures(c);
+    }
+}
+
