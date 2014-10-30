@@ -20,11 +20,15 @@
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/classification.hpp>
 
+mongo::BSONObj MakeMatObj(cv::Mat& matrix);
+
+mongo::BSONArray MakeArrayObj(mongo::BSONObj entity, const std::string type);
+
 mongo::BSONObj MakeObj(cv::Mat & image_des, int image_no, std::string image_folder);
 
 mongo::BSONObj MakeErrorObj(std::string error, int image_no, std::string image_folder);
 
-cv::Mat ExtractDescriptorMatrix(mongo::BSONObj descriptor_object, int image_no);
+cv::Mat ExtractMatrixObj(mongo::BSONObj descriptor_object);
 
 void Mongo_run(mongo::DBClientConnection* c);
 

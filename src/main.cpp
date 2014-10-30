@@ -24,6 +24,7 @@ using namespace std;
 void DisplayImageLevelFeatures(mongo::DBClientConnection);
 void BOW(mongo::DBClientConnection*);
 void AddDescribtorstoDB(mongo::DBClientConnection *);
+void WeightedVectorGenerator(mongo:: DBClientConnection *);
 
 Mat ProcessImage(const string image_url, const int image_no){
     using namespace boost::algorithm;
@@ -36,12 +37,13 @@ Mat ProcessImage(const string image_url, const int image_no){
     string output_filename = filename_tokens[0] + "_pca" + ".jpg";
     tokens.pop_back();
     tokens.push_back(output_filename);
-    string output_path = join(tokens, "/");
-    cout<<"Output Path: "<<output_path<<endl;
+    //string output_path = join(tokens, "/");
+    //cout<<"Output Path: "<<output_path<<endl;
 
-    //Watershed Segmentation
     Mat sourceImage = imread(image_url);
     //imshow("Original Image", sourceImage);
+
+    //Watershed Segmentation
     //Mat outputImage = multi_channelSegmentation(sourceImage);
 
     //Surf Feature Detection
@@ -74,35 +76,12 @@ int main(){
     //AddDescribtorstoDB(&c);
 
     //Generate Vocabulary
-    BOW(&c);
+    //BOW(&c);
+
+    //Generate Histograms
+    WeightedVectorGenerator(&c);
 
     return 0;
-}
-
-void BOW(mongo::DBClientConnection *c){
-    ofstream error_file;
-    error_file.open("errors.txt");
-    //Extract Image_Descriptors to add to BOW Trainer , 200 clusters
-    BOWKMeansTrainer bowkmeans(200, TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 100, 0.001), 1, KMEANS_PP_CENTERS);
-    auto_ptr<mongo::DBClientCursor> cursor = c->query("image_annotation.image_descriptors", mongo::BSONObj());
-    while(cursor->more()){
-        mongo::BSONObj obj = cursor->next();
-        int image_no = obj.getIntField("image_no");
-        cout<<image_no<<endl;
-        Mat descriptors = ExtractDescriptorMatrix(obj.getObjectField("descriptors"), image_no);
-        if(!descriptors.empty()){
-            bowkmeans.add(descriptors);
-        }
-        else{
-            cout<<"Empty Descriptors: "<<image_no<<endl;
-            error_file <<image_no<<"\n" ;
-        }
-    }
-    error_file.close();
-    Mat dictionary = bowkmeans.cluster();
-    FileStorage fs("clusters_vocavulary.yml", FileStorage::WRITE);
-    fs << "vocabulary" << dictionary;
-    fs.release();
 }
 
 void DisplayImageLevelFeatures(mongo::DBClientConnection c, const int image_no){
@@ -118,7 +97,6 @@ void DisplayImageLevelFeatures(mongo::DBClientConnection c, const int image_no){
 
 void AddDescribtorstoDB(mongo::DBClientConnection* c){
     auto_ptr<mongo::DBClientCursor> cursor = c->query("image_annotation.images", mongo::BSONObj());
-
     while(cursor->more()){
         mongo::BSONObj image_object = cursor->next();
         int image_no = image_object.getIntField("image_no");
@@ -143,3 +121,66 @@ void AddDescribtorstoDB(mongo::DBClientConnection* c){
     }
 }
 
+void BOW(mongo::DBClientConnection *c){
+    ofstream error_file;
+    ofstream images_used;
+    images_used.open("images_used.txt", ios::out);
+    error_file.open("errors.txt", ios::out);
+    //Extract Image_Descriptors to add to BOW Trainer , 200 clusters
+    BOWKMeansTrainer bowkmeans(200, TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 100, 0.001), 1, KMEANS_PP_CENTERS);
+    auto_ptr<mongo::DBClientCursor> cursor = c->query("image_annotation.image_descriptors", mongo::BSONObj());
+    int i=0;
+    while(cursor->more() && i < 1000){
+        mongo::BSONObj obj = cursor->next();
+        int image_no = obj.getIntField("image_no");
+        cout<<i << " + " << image_no << endl;
+        Mat descriptors = ExtractMatrixObj(obj.getObjectField("descriptors"));
+        if(!descriptors.empty()){
+            bowkmeans.add(descriptors);
+            images_used << image_no;
+            images_used << "\n";
+            i++;
+        }
+        else{
+            cout<<"Empty Descriptors: "<<image_no<<endl;
+            error_file<<image_no;
+            error_file<<"\n";
+        }
+    }
+    error_file.close();
+    images_used.close();
+    Mat dictionary = bowkmeans.cluster();
+    FileStorage fs("clusters_vocabulary.yml", FileStorage::WRITE);
+    fs << "vocabulary" << dictionary;
+    fs.release();
+}
+
+void WeightedVectorGenerator(mongo::DBClientConnection *c){
+    Ptr<FeatureDetector> detector(new SurfFeatureDetector());
+    Ptr<DescriptorMatcher> matcher(new FlannBasedMatcher());
+    Ptr<DescriptorExtractor> extractor = DescriptorExtractor::create("SURF");
+    Ptr<BOWImgDescriptorExtractor> bowide(new BOWImgDescriptorExtractor(extractor,matcher));
+    FileStorage fs("clusters_vocabulary.yml", FileStorage::READ);
+    Mat vocabulary;
+    fs["vocabulary"] >> vocabulary;
+    bowide->setVocabulary(vocabulary);
+    auto_ptr<mongo::DBClientCursor> cursor = c->query("image_annotation.sample_images", mongo::BSONObj());
+    while(cursor->more()){
+        mongo::BSONObj image_obj = cursor->next();
+        string image_path = image_obj.getStringField("image_url");
+        int image_no = image_obj.getIntField("image_no");
+        auto_ptr<mongo::DBClientCursor> result_cursor =
+                c->query("image_annotation.sample_results", QUERY("image_no" << image_no));
+        mongo::BSONObj entities = result_cursor->next().getObjectField("entities");
+        Mat image = imread(image_path);
+        Mat response_hist;
+        vector<KeyPoint> keypoints;
+        detector->detect(image,keypoints);
+        bowide->compute(image, keypoints, response_hist);
+        mongo::BSONObjBuilder bob;
+        bob.append("image_no", image_no);
+        bob.append("hist", MakeMatObj(response_hist));
+        bob.append("classes", MakeArrayObj(entities, "string"));
+        c->insert("image_annotation.mapped_responses", bob.obj());
+    }
+}

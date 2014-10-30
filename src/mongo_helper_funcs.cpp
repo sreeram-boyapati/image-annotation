@@ -24,21 +24,25 @@ void Mongo_run(mongo::DBClientConnection* c){
     c->connect("127.0.0.1:27017");
 }
 
+mongo::BSONObj MakeMatObj(Mat& matrix){
+    mongo::BSONObjBuilder matrix_obj;
+    for(int i=0; i<matrix.rows; i++){
+        mongo::BSONArrayBuilder bab;
+        for(int j=0; j<matrix.cols; j++){
+             bab.append(matrix.at<int>(i, j));
+        }
+        ostringstream ss;
+        ss<<i;
+        matrix_obj.appendArray(ss.str(), bab.arr());
+    }
+    return matrix_obj.obj();
+}
+
 mongo::BSONObj MakeObj(cv::Mat & image_des, int image_no, string image_folder){
    mongo::BSONObjBuilder bob;
    bob.append("image_no", image_no);
    bob.append("image_folder", image_folder);
-   mongo::BSONObjBuilder descriptors;
-   for(int i=0; i<image_des.rows; i++){
-       mongo::BSONArrayBuilder bab;
-       for(int j=0; j<image_des.cols; j++){
-            bab.append(image_des.at<int>(i, j));
-       }
-       ostringstream ss;
-       ss<<i;
-       descriptors.appendArray(ss.str(), bab.arr());
-   }
-   bob.append("descriptors", descriptors.obj());
+   bob.append("descriptors", MakeMatObj(image_des));
    return bob.obj();
 }
 
@@ -51,7 +55,7 @@ mongo::BSONObj MakeErrorObj(string error, int image_no, string image_folder){
     return bob.obj();
 }
 
-Mat ExtractDescriptorMatrix(mongo::BSONObj descriptor_object, int image_no){
+Mat ExtractMatrixObj(mongo::BSONObj descriptor_object){
     Mat descriptors = Mat::zeros(descriptor_object.nFields(), 64, CV_32F);
     mongo::BSONObjIterator it =  descriptor_object.begin();
     while(it.more()){
@@ -66,4 +70,19 @@ Mat ExtractDescriptorMatrix(mongo::BSONObj descriptor_object, int image_no){
         descriptors.push_back(column);
     }
     return descriptors;
+}
+
+mongo::BSONArray MakeArrayObj(mongo::BSONObj entity, const string type){
+    vector<mongo::BSONElement> entities;
+    entity.elems(entities);
+    mongo::BSONArrayBuilder bab;
+    for(int i=0; i<entities.size(); i++){
+        if(type.compare("string") == 0){
+            bab.append(entities[i].String());
+        }
+        else if(type.compare("int") == 0){
+            bab.append(entities[i].Int());
+        }
+    }
+    return bab.arr();
 }
