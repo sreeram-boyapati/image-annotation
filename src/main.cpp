@@ -26,7 +26,7 @@ void BOW(mongo::DBClientConnection*);
 void AddDescribtorstoDB(mongo::DBClientConnection *);
 void WeightedVectorGenerator(mongo:: DBClientConnection *);
 
-Mat ProcessImage(const string image_url, const int image_no){
+Mat ProcessImage(const string image_url){
     using namespace boost::algorithm;
     vector<string> tokens;
     //Preprocessing the strings.
@@ -76,10 +76,10 @@ int main(){
     //AddDescribtorstoDB(&c);
 
     //Generate Vocabulary
-    //BOW(&c);
+    BOW(&c);
 
     //Generate Histograms
-    WeightedVectorGenerator(&c);
+    //WeightedVectorGenerator(&c);
 
     return 0;
 }
@@ -103,7 +103,7 @@ void AddDescribtorstoDB(mongo::DBClientConnection* c){
         string image_folder = image_object.getStringField("image_folder");
         string image_url = image_object.getStringField("image_url");
         //To Process the image
-        Mat image_descriptors = ProcessImage(image_url, image_no);
+        Mat image_descriptors = ProcessImage(image_url);
         //To add image descriptors to mongodb database
         if(!image_descriptors.empty()){
             try{
@@ -127,10 +127,10 @@ void BOW(mongo::DBClientConnection *c){
     images_used.open("images_used.txt", ios::out);
     error_file.open("errors.txt", ios::out);
     //Extract Image_Descriptors to add to BOW Trainer , 200 clusters
-    BOWKMeansTrainer bowkmeans(200, TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 100, 0.001), 1, KMEANS_PP_CENTERS);
+    BOWKMeansTrainer bowkmeans(1000, TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 100, 0.001), 1, KMEANS_PP_CENTERS);
     auto_ptr<mongo::DBClientCursor> cursor = c->query("image_annotation.image_descriptors", mongo::BSONObj());
     int i=0;
-    while(cursor->more() && i < 1000){
+    while(cursor->more() && i < 7000){
         mongo::BSONObj obj = cursor->next();
         int image_no = obj.getIntField("image_no");
         cout<<i << " + " << image_no << endl;
@@ -181,6 +181,6 @@ void WeightedVectorGenerator(mongo::DBClientConnection *c){
         bob.append("image_no", image_no);
         bob.append("hist", MakeMatObj(response_hist));
         bob.append("classes", MakeArrayObj(entities, "string"));
-        c->insert("image_annotation.mapped_responses", bob.obj());
+        c->insert("image_annotation.mapped1_responses", bob.obj());
     }
 }
